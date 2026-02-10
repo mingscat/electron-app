@@ -5,5 +5,5 @@
     "outDir": "out",
     "lib": ["ES2020", "DOM", "DOM.Iterable"]
   },
-  "include": ["src/renderer/**/*", "src/ipc/**/*"]
+  "include": ["src/renderer/**/*", "src/worker/**/*", "src/ipc/**/*", "src/types/**/*"]
 }

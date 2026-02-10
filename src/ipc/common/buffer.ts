@@ -26,7 +26,7 @@ export class VSBuffer {
       }
     }
     // 默认尝试转换为 Uint8Array
-    return new VSBuffer(new Uint8Array(actual as ArrayBuffer));
+    return new VSBuffer(new Uint8Array(actual as unknown as ArrayBuffer));
   }
 
   static fromString(source: string): VSBuffer {

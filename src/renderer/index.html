@@ -4,14 +4,63 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>electron-app</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px; background: #1e1e2e; color: #cdd6f4; }
+    h1 { font-size: 1.6em; margin-bottom: 4px; color: #89b4fa; }
+    p.subtitle { color: #6c7086; margin-bottom: 20px; font-size: 0.9em; }
+    .section { margin-bottom: 16px; padding: 16px; background: #313244; border-radius: 8px; }
+    .section h2 { font-size: 1em; color: #a6adc8; margin-bottom: 10px; }
+    button { padding: 8px 16px; margin: 0 8px 8px 0; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: 500; transition: opacity 0.2s; }
+    button:hover { opacity: 0.85; }
+    .btn-blue { background: #89b4fa; color: #1e1e2e; }
+    .btn-green { background: #a6e3a1; color: #1e1e2e; }
+    .btn-purple { background: #cba6f7; color: #1e1e2e; }
+    .btn-orange { background: #fab387; color: #1e1e2e; }
+    .btn-teal { background: #94e2d5; color: #1e1e2e; }
+    .btn-red { background: #f38ba8; color: #1e1e2e; }
+    input[type="text"] { padding: 8px 12px; border: 1px solid #45475a; border-radius: 6px; background: #1e1e2e; color: #cdd6f4; font-size: 0.85em; width: 360px; margin-right: 8px; }
+    input::placeholder { color: #6c7086; }
+    #log { margin-top: 16px; padding: 12px; background: #11111b; border-radius: 8px; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.8em; line-height: 1.6; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; color: #a6adc8; }
+  </style>
 </head>
 <body>
-  <div id="root">
-    <h1>electron-app</h1>
-    <p>通信：vscode IPC</p>
-    <button id="btn-version">获取版本 (getChannel('app').call('getVersion'))</button>
-    <pre id="log"></pre>
+  <h1>Electron App</h1>
+  <p class="subtitle">架构：VSCode IPC + Worker Services + HTTP</p>
+
+  <div class="section">
+    <h2>应用</h2>
+    <button id="btn-version" class="btn-blue">获取版本</button>
   </div>
+
+  <div class="section">
+    <h2>后台 Worker</h2>
+    <button id="btn-create-bg" class="btn-green">创建后台窗口</button>
+    <button id="btn-exec-task" class="btn-green">执行任务 (ping)</button>
+  </div>
+
+  <div class="section">
+    <h2>HTTP 网络</h2>
+    <div style="margin-bottom: 8px;">
+      <input type="text" id="http-url" placeholder="https://httpbin.org/get" />
+    </div>
+    <button id="btn-http-get" class="btn-purple">GET 请求</button>
+    <button id="btn-http-post" class="btn-orange">POST 请求</button>
+  </div>
+
+  <div class="section">
+    <h2>文件操作</h2>
+    <div style="margin-bottom: 8px;">
+      <input type="text" id="file-path" placeholder="输入文件路径（如 C:\test.txt 或 /tmp/test.txt）" style="width: 480px;" />
+    </div>
+    <button id="btn-file-write" class="btn-teal">写入文件</button>
+    <button id="btn-file-read" class="btn-teal">读取文件</button>
+    <button id="btn-file-exists" class="btn-teal">检查存在</button>
+    <button id="btn-file-listdir" class="btn-teal">列出目录</button>
+    <button id="btn-file-remove" class="btn-red">删除</button>
+  </div>
+
+  <pre id="log"></pre>
   <script type="module" src="./main.ts"></script>
 </body>
 </html>

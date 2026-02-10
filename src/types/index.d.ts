@@ -3,6 +3,8 @@
  */
 
 export * from './background';
+export * from './file';
+export * from './http';
 export * from './ipc';
 export * from './preload';
 export * from './electron';

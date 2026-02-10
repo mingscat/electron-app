@@ -6,5 +6,5 @@
     "module": "ESNext",
     "moduleResolution": "node"
   },
-  "include": ["src/main/**/*", "src/preload/**/*", "src/ipc/**/*"]
+  "include": ["src/main/**/*", "src/preload/**/*", "src/ipc/**/*", "src/types/**/*"]
 }

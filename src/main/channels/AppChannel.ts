@@ -1,48 +1,50 @@
-import type { CancellationToken, IEvent, IServerChannel } from '../../ipc/common/types';
+/**
+ * App 通道：应用基础信息
+ *
+ * 命令：getVersion / ping
+ * 事件：onLog —— 主进程日志推送给渲染进程（示例事件）
+ */
+import { app } from 'electron';
+import type { IServerChannel } from '../../ipc/common/types';
+import { BaseChannel } from '../../ipc/common/baseChannel';
+import { Emitter } from '../../ipc/common/event';
 
-type CommandHandler = (ctx: string, arg: unknown) => Promise<unknown>;
+/** 日志条目 */
+export interface LogEntry {
+  level: 'info' | 'warn' | 'error';
+  message: string;
+  timestamp: number;
+}
 
-class AppChannel implements IServerChannel<string> {
-    private readonly handlers = new Map<string, CommandHandler>();
+class AppChannel extends BaseChannel {
+  private readonly _onLog = new Emitter<LogEntry>();
 
-    constructor() {
-        // ─── 命令注册表（新增命令只需加一行 + 对应方法） ───
-        this.on('getVersion', this.getVersion);
-        this.on('ping', this.ping);
-    }
+  constructor() {
+    super();
+    // ─── 命令 ───
+    this.onCommand('getVersion', this.handleGetVersion);
+    this.onCommand('ping', this.handlePing);
 
-    // ─── 命令处理方法 ──────────────────────────────
+    // ─── 事件 ───
+    this.onEvent('onLog', this._onLog.event);
+  }
 
-    /** 获取应用版本号 */
-    private getVersion = async (): Promise<string> => {
-        // TODO: 可从 package.json 或 app.getVersion() 读取
-        return '1.0.0';
-    };
+  private handleGetVersion = async (): Promise<string> => {
+    return app.getVersion();
+  };
 
-    /** 网络 ping 测试 */
-    private ping = async (_ctx: string, arg: unknown): Promise<{ pong: true; arg: unknown }> => {
-        return { pong: true, arg };
-    };
+  private handlePing = async (_ctx: string, arg: unknown): Promise<{ pong: true; arg: unknown }> => {
+    return { pong: true, arg };
+  };
 
-    // ─── 基础设施（通常不需要修改） ─────────────────
-
-    call<T>(ctx: string, command: string, arg?: unknown, _cancellationToken?: CancellationToken): Promise<T> {
-        const handler = this.handlers.get(command);
-        if (!handler) {
-            return Promise.reject(new Error(`[AppChannel] Unknown command: ${command}`));
-        }
-        return handler(ctx, arg) as Promise<T>;
-    }
-
-    listen<T>(_ctx: string, _event: string, _arg?: unknown): IEvent<T> {
-        throw new Error('[AppChannel] listen not implemented');
-    }
-
-    private on(command: string, handler: CommandHandler): void {
-        this.handlers.set(command, handler);
-    }
+  /** 供其他模块调用：向渲染进程推送日志 */
+  pushLog(level: LogEntry['level'], message: string): void {
+    this._onLog.fire({ level, message, timestamp: Date.now() });
+  }
 }
 
 export function createAppChannel(): IServerChannel<string> {
-    return new AppChannel();
+  return new AppChannel();
 }
+
+export { AppChannel };
