@@ -1,0 +1,34 @@
+---
+description: Electron 桌面应用开发规范（安全、性能、跨平台）
+globs: ["src/**/*", "package.json", "electron*.config.*"]
+alwaysApply: false
+---
+
+# Electron 项目规范
+
+本仓库为 Electron 桌面应用。开发时请遵循以下规范。
+
+## 安全（必须）
+
+- **Context isolation** 全程开启；渲染进程 **nodeIntegration: false**
+- 仅通过 **preload** 暴露最小 API，使用 contextBridge
+- IPC 使用白名单 channel，不暴露任意 `ipcRenderer.send`
+- 远程内容禁用 `require`，启用 webSecurity
+- 外部请求考虑证书/证书钉扎（mTLS 已在 HttpChannel 支持）
+
+## 架构
+
+- **主进程**：窗口管理、IPC 服务端、生命周期；不堆业务逻辑
+- **Worker 窗口**：后台任务（services 层），通过 IPC 与主进程通信
+- **渲染进程**：纯 UI + 通过 API 类（AppApi/BackgroundApi/HttpApi）调用 IPC
+
+## 代码风格
+
+- 服务与 API 使用 **class** 写法
+- 新增后台任务：在 `worker/services/` 加实现，在 `registerServices.ts` 的 `registerAll()` 中注册
+- HTTP 走主进程 HttpChannel（Node.js http/https），支持 cert/key/ca
+
+## 性能与分发
+
+- 启动与内存：关注启动时间与空闲内存
+- 打包：多平台构建、代码签名与安装包配置见 `docs/`
