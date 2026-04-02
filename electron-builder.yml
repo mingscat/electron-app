@@ -1,0 +1,84 @@
+# @see https://www.electron.build/configuration/configuration
+appId: com.electron-app
+productName: ElectronApp
+asar: true
+compression: maximum
+
+# 仅保留中英文语言包，减少约 40MB
+electronLanguages:
+  - en-US
+  - zh-CN
+
+directories:
+  output: release/${version}
+
+files:
+  - "out/**"
+  - "package.json"
+  - "!**/.vscode/*"
+  - "!src/*"
+  - "!electron.vite.config.*"
+  - "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}"
+  - "!{.eslintignore,.eslintrc*,.prettierignore,.prettierrc*,.npmrc,pnpm-lock.yaml}"
+  - "!{CHANGELOG.md,README.md,.env,.env.*}"
+  # 排除 node_modules 中的源码和开发文件
+  - "!**/node_modules/**/*.map"
+  - "!**/node_modules/**/*.ts"
+  - "!**/node_modules/**/src/**"
+
+# 包含Rust原生模块
+extraResources:
+  - from: "native/*.node"
+    to: "native/"
+    filter:
+      - "*.node"
+
+# Windows
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  executableName: ElectronApp
+  artifactName: ${productName}-Windows-${version}-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+
+# macOS
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.utilities
+  artifactName: ${productName}-Mac-${version}-${arch}.${ext}
+
+dmg:
+  artifactName: ${productName}-${version}.${ext}
+
+# Linux
+linux:
+  target:
+    - AppImage
+    - deb
+  maintainer: electronjs.org
+  category: Utility
+  artifactName: ${productName}-Linux-${version}-${arch}.${ext}
+
+appImage:
+  artifactName: ${productName}-${version}.${ext}
+
+# 不重新编译原生模块（electron-vite 已处理）
+npmRebuild: false
+
+# 禁用自动发布（避免 GH_TOKEN 未设置时报错）
+publish: null

@@ -1,8 +1,11 @@
 import { resolve } from 'path';
-import { defineConfig } from 'electron-vite';
+import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 
 export default defineConfig({
   main: {
+    plugins: [
+      externalizeDepsPlugin({ exclude: ['electron-store', 'mitt'] }),
+    ],
     build: {
       rollupOptions: {
         input: {
@@ -27,6 +30,7 @@ export default defineConfig({
         input: {
           index: resolve(__dirname, 'src/renderer/index.html'),
           background: resolve(__dirname, 'src/renderer/background.html'),
+          'screenshot-editor': resolve(__dirname, 'src/renderer/screenshot-editor.html'),
         },
       },
     },

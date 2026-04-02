@@ -16,6 +16,7 @@ import { createAppChannel } from './channels/AppChannel';
 import { createBackgroundChannel } from './channels/BackgroundChannel';
 import { createHttpChannel } from './channels/HttpChannel';
 import { createFileChannel } from './channels/FileChannel';
+import { createScreenshotChannel } from './channels/ScreenshotChannel';
 
 /** 通道工厂函数签名 */
 type ChannelFactory = () => IServerChannel<string>;
@@ -45,7 +46,8 @@ export class IPCChannelManager {
       .register('app', () => createAppChannel())
       .register('http', () => createHttpChannel())
       .register('file', () => createFileChannel())
-      .register('background', () => createBackgroundChannel(windowManager));
+      .register('background', () => createBackgroundChannel(windowManager))
+      .register('screenshot', () => createScreenshotChannel());
   }
 
   /**

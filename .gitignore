@@ -10,3 +10,19 @@ out
 .env.production.local
 .idea
 .DS_Store
+
+# electron-builder
+release
+
+# ai
+.cursor
+
+# rust node modules
+native/node_modules
+
+# rust target
+native/target
+
+# pnpm
+.pnpm-store
+*/pnpm-lock.yaml

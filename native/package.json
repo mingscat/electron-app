@@ -1,0 +1,27 @@
+{
+  "name": "@electron-app/screenshot-native",
+  "version": "1.0.0",
+  "description": "Native screenshot module using Rust and xcap",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "napi": {
+    "name": "screenshot-native",
+    "triples": {
+      "additional": [
+        "aarch64-apple-darwin",
+        "aarch64-unknown-linux-gnu",
+        "aarch64-pc-windows-msvc",
+        "x86_64-unknown-linux-musl"
+      ]
+    }
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@napi-rs/cli": "^3.6.0"
+  },
+  "scripts": {
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "prepublishOnly": "napi prepublish -t npm"
+  }
+}

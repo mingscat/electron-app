@@ -14,12 +14,14 @@
  * 测试时可注入 mock 依赖：
  *   const electronApp = new ElectronApp(mockWindowManager, mockChannelManager);
  */
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain, dialog, clipboard, nativeImage } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ElectronIPCServer } from '../ipc/electron-main/server.js';
 import { WindowManager } from './WindowManager.js';
 import { IPCChannelManager } from './IPCChannelManager';
+import { createScreenshotEditorWindow, ScreenshotEditorWindow } from './windows/ScreenshotEditorWindow.js';
+import type { ImageData } from '../types/screenshot.js';
 
 /** 窗口状态持久化数据 */
 interface WindowState {
@@ -33,6 +35,7 @@ interface WindowState {
 export class ElectronApp {
   private ipcServer: ElectronIPCServer<string> | null = null;
   private isQuitting = false;
+  private screenshotEditor: ScreenshotEditorWindow | null = null;
 
   /** 窗口状态文件路径 */
   private get windowStatePath(): string {
@@ -74,6 +77,12 @@ export class ElectronApp {
 
     // 5. 创建后台窗口
     this.createDefaultBackgroundWindow();
+
+    // 6. 设置截图快捷键
+    this.setupScreenshotShortcut();
+
+    // 7. 设置截图相关的IPC处理
+    this.setupScreenshotIPC();
 
     console.log('[ElectronApp] ✓ 应用初始化完成');
   }
@@ -285,6 +294,173 @@ export class ElectronApp {
       });
     } catch (error) {
       console.error('[ElectronApp] ✗ 创建后台窗口失败:', error);
+    }
+  }
+
+  // ─── 截图功能 ─────────────────────────────────────
+
+  private setupScreenshotShortcut(): void {
+    // 注册截图快捷键 Ctrl+Shift+A (Windows/Linux) 或 Cmd+Shift+A (macOS)
+    const shortcut = process.platform === 'darwin' ? 'Cmd+Shift+D' : 'Ctrl+Shift+D';
+
+    const registered = globalShortcut.register(shortcut, () => {
+      console.log('[ElectronApp] Screenshot shortcut triggered');
+      this.startScreenshot();
+    });
+
+    if (registered) {
+      console.log(`[ElectronApp] Screenshot shortcut registered: ${shortcut}`);
+    } else {
+      console.error(`[ElectronApp] Failed to register screenshot shortcut: ${shortcut}`);
+    }
+  }
+
+  private setupScreenshotIPC(): void {
+    // 处理截图完成后的保存/复制操作
+    ipcMain.handle('screenshot:save-file', async (_event, dataUrl: string) => {
+      try {
+        const result = await dialog.showSaveDialog({
+          defaultPath: `screenshot-${Date.now()}.png`,
+          filters: [
+            { name: 'PNG Images', extensions: ['png'] },
+            { name: 'JPEG Images', extensions: ['jpg', 'jpeg'] },
+            { name: 'All Files', extensions: ['*'] },
+          ],
+        });
+
+        if (!result.canceled && result.filePath) {
+          const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+          const buffer = Buffer.from(base64Data, 'base64');
+          fs.writeFileSync(result.filePath, buffer);
+          return { success: true, path: result.filePath };
+        }
+        return { success: false, canceled: true };
+      } catch (error) {
+        console.error('[ElectronApp] Failed to save screenshot:', error);
+        return { success: false, error: String(error) };
+      }
+    });
+
+    ipcMain.handle('screenshot:copy-clipboard', async (_event, dataUrl: string) => {
+      try {
+        const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+        const image = nativeImage.createFromBuffer(buffer);
+        clipboard.writeImage(image);
+        return { success: true };
+      } catch (error) {
+        console.error('[ElectronApp] Failed to copy screenshot:', error);
+        return { success: false, error: String(error) };
+      }
+    });
+  }
+
+  private async startScreenshot(): Promise<void> {
+    try {
+      // 加载原生模块
+      let nativeModule: typeof import('../../native/index.js') | null = null;
+      const platform = process.platform;
+      const arch = process.arch;
+
+      let binaryName: string;
+      if (platform === 'win32') {
+        binaryName = `screenshot-native.win32-${arch}-msvc.node`;
+      } else if (platform === 'darwin') {
+        binaryName = `screenshot-native.darwin-${arch}.node`;
+      } else {
+        binaryName = `screenshot-native.linux-${arch}-gnu.node`;
+      }
+
+      const isDev = process.env.NODE_ENV === 'development' || !!process.env.ELECTRON_VITE_DEV_URL;
+      const searchPaths = isDev
+        ? [
+            path.join(__dirname, '../../../native', binaryName),
+            path.join(__dirname, '../../../../native', binaryName),
+            path.join(app.getAppPath(), 'native', binaryName),
+          ]
+        : [
+            path.join(process.resourcesPath, 'native', binaryName),
+            path.join(__dirname, '..', '..', 'native', binaryName),
+          ];
+
+      for (const modulePath of searchPaths) {
+        if (fs.existsSync(modulePath)) {
+          nativeModule = require(modulePath);
+          console.log('[ElectronApp] Loaded native module from:', modulePath);
+          break;
+        }
+      }
+
+      if (!nativeModule) {
+        throw new Error('Native module not found');
+      }
+
+      // 获取所有显示器信息
+      const displays = nativeModule.getDisplays();
+      console.log('[ElectronApp] Displays:', displays);
+
+      // 捕获所有显示器
+      const fullImage = nativeModule.captureAllDisplays();
+      console.log('[ElectronApp] Captured all displays:', fullImage.width, 'x', fullImage.height);
+
+      // 计算虚拟桌面边界
+      const minX = Math.min(...displays.map(d => d.x));
+      const minY = Math.min(...displays.map(d => d.y));
+
+      // 如果已有编辑器窗口，先关闭
+      if (this.screenshotEditor) {
+        this.screenshotEditor.destroy();
+        this.screenshotEditor = null;
+      }
+
+      // 创建截图编辑器
+      this.screenshotEditor = createScreenshotEditorWindow({
+        fullImageData: {
+          data: Buffer.from(fullImage.data).toString('base64'),
+          width: fullImage.width,
+          height: fullImage.height,
+        },
+        bounds: {
+          x: minX,
+          y: minY,
+          width: fullImage.width,
+          height: fullImage.height,
+        },
+        displays: displays.map(d => ({
+          x: d.x,
+          y: d.y,
+          width: d.width,
+          height: d.height,
+          scaleFactor: d.scaleFactor,
+        })),
+      });
+
+      // 打开编辑器并等待结果
+      const result = await this.screenshotEditor.open();
+      this.screenshotEditor = null;
+
+      if (result) {
+        console.log('[ElectronApp] Screenshot completed:', result.imageData.width, 'x', result.imageData.height);
+
+        // 自动复制到剪贴板
+        const base64Data = result.imageData.data;
+        const buffer = Buffer.from(base64Data, 'base64');
+        const image = nativeImage.createFromBuffer(buffer);
+        clipboard.writeImage(image);
+
+        // 显示通知
+        const mainWin = this.windowManager.getMainWindow();
+        if (mainWin) {
+          mainWin.webContents.send('screenshot:completed', {
+            width: result.imageData.width,
+            height: result.imageData.height,
+          });
+        }
+      } else {
+        console.log('[ElectronApp] Screenshot cancelled');
+      }
+    } catch (error) {
+      console.error('[ElectronApp] Screenshot failed:', error);
     }
   }
 
